@@ -24,8 +24,8 @@
     
     #gameContainer {
       position: relative;
-      width: 400px;
-      height: 600px;
+      width: 800px;
+      height: 450px;
       background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
       border-radius: 16px;
       overflow: hidden;
@@ -76,6 +76,42 @@
       color: #4ECDC4;
     }
     
+    /* 道具栏 */
+    #powerupBar {
+      position: absolute;
+      top: 55px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .powerup-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      opacity: 0.3;
+      transition: all 0.3s;
+    }
+    
+    .powerup-icon.active {
+      opacity: 1;
+      animation: powerupPulse 0.5s ease-in-out infinite;
+    }
+    
+    @keyframes powerupPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+    
     /* 屏幕覆盖层 */
     .screen {
       position: absolute;
@@ -94,13 +130,13 @@
     }
     
     .screen h1 {
-      font-size: 36px;
+      font-size: 42px;
       margin-bottom: 16px;
       text-shadow: 0 0 20px rgba(255,255,255,0.5);
     }
     
     .screen h1 span {
-      font-size: 48px;
+      font-size: 56px;
     }
     
     .screen p {
@@ -185,10 +221,10 @@
       transform: scale(0.9);
     }
     
-    @media (max-width: 500px) {
+    @media (max-width: 900px) {
       #gameContainer {
         width: 100vw;
-        height: 100vh;
+        height: 56.25vw; /* 16:9 */
         border-radius: 0;
       }
       #mobileControls {
@@ -199,13 +235,13 @@
     /* 连击显示 */
     #comboDisplay {
       position: absolute;
-      top: 70px;
+      top: 100px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 24px;
+      font-size: 28px;
       font-weight: bold;
       color: #FFD93D;
-      text-shadow: 0 0 10px rgba(255,217,61,0.8);
+      text-shadow: 0 0 15px rgba(255,217,61,0.8);
       z-index: 10;
       pointer-events: none;
       opacity: 0;
@@ -219,17 +255,17 @@
     
     @keyframes comboPop {
       0% { transform: translateX(-50%) scale(0.8); }
-      50% { transform: translateX(-50%) scale(1.2); }
+      50% { transform: translateX(-50%) scale(1.3); }
       100% { transform: translateX(-50%) scale(1); }
     }
     
     /* 获得分数飘字 */
     .floatScore {
       position: absolute;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       color: #FFD93D;
-      text-shadow: 0 0 5px rgba(255,217,61,0.8);
+      text-shadow: 0 0 8px rgba(255,217,61,0.8);
       pointer-events: none;
       animation: floatUp 1s ease-out forwards;
       z-index: 10;
@@ -237,13 +273,31 @@
     
     @keyframes floatUp {
       0% { opacity: 1; transform: translateY(0); }
-      100% { opacity: 0; transform: translateY(-50px); }
+      100% { opacity: 0; transform: translateY(-60px); }
+    }
+    
+    /* 伤害提示 */
+    .damageText {
+      position: absolute;
+      font-size: 24px;
+      font-weight: bold;
+      color: #FF4757;
+      text-shadow: 0 0 10px rgba(255,71,87,0.8);
+      pointer-events: none;
+      animation: damageFloat 0.8s ease-out forwards;
+      z-index: 10;
+    }
+    
+    @keyframes damageFloat {
+      0% { opacity: 1; transform: translateY(0) scale(1); }
+      50% { transform: translateY(-20px) scale(1.2); }
+      100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
     }
   </style>
 </head>
 <body>
   <div id="gameContainer">
-    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <canvas id="gameCanvas" width="800" height="450"></canvas>
     
     <!-- UI -->
     <div id="ui">
@@ -258,6 +312,14 @@
       </div>
     </div>
     
+    <!-- 道具栏 -->
+    <div id="powerupBar">
+      <div class="powerup-icon" id="umbrellaIcon">☂️</div>
+      <div class="powerup-icon" id="bootsIcon">👢</div>
+      <div class="powerup-icon" id="magnetIcon">🧲</div>
+      <div class="powerup-icon" id="speedIcon">⚡</div>
+    </div>
+    
     <!-- 连击显示 -->
     <div id="comboDisplay">🔥 Combo x2!</div>
     
@@ -265,7 +327,7 @@
     <div id="startScreen" class="screen">
       <h1><span>🐱</span> 小猫回家</h1>
       <p class="subtitle">下雨天，小猫咪要赶回家～</p>
-      <p>🌧️ 躲避雨滴 | 🐟 收集小鱼干 | 🏠 到达房子</p>
+      <p>🌧️ 躲避雨滴 | 🐟 收集小鱼干 | ☂️ 捡道具 | 🏠 到达房子</p>
       <p style="margin-top: 15px; font-size: 14px; color: #888;">
         💻 键盘 ← → 移动 | 📱 点击左右按钮
       </p>
@@ -323,36 +385,43 @@
   <script>
     // ========== 游戏配置 ==========
     const CONFIG = {
-      playerSpeed: 6,
-      playerWidth: 40,
-      playerHeight: 50,
-      rainBaseSpeed: 3,
-      rainSpeedIncrease: 0.8,
-      rainSpawnRate: 40,
-      fishSpawnRate: 120,
-      puddleSpawnRate: 180,
-      doorWidth: 60,
-      doorHeight: 80,
+      playerSpeed: 7,
+      playerWidth: 50,
+      playerHeight: 60,
+      rainBaseSpeed: 4,
+      rainSpeedIncrease: 1,
+      rainSpawnRate: 35,
+      fishSpawnRate: 100,
+      puddleSpawnRate: 200,
+      powerupSpawnRate: 400,
+      lightningSpawnRate: 500,
+      bombSpawnRate: 600,
+      doorWidth: 70,
+      doorHeight: 90,
       maxHearts: 3,
       colors: {
-        cat: ['#FFA726', '#FFFFFF', '#424242'], // 橘、白、黑
+        cat: ['#FFA726', '#FFFFFF', '#424242'],
         rain: '#4FC3F7',
-        rainGlow: 'rgba(79,195,247,0.4)',
         fish: '#FFD93D',
-        fishGlow: 'rgba(255,217,61,0.5)',
         puddle: '#5C6BC0',
         house: '#FF8A65',
-        houseLight: '#FFE082'
+        houseLight: '#FFE082',
+        umbrella: '#FF6B6B',
+        boots: '#4ECDC4',
+        magnet: '#A78BFA',
+        speed: '#FBBF24',
+        lightning: '#FCD34D',
+        bomb: '#EF4444'
       }
     };
 
     // ========== 关卡配置 ==========
     const LEVELS = [
-      { name: '小雨', rainSpeed: 3, rainRate: 50, fishRate: 150, puddles: 0 },
-      { name: '中雨', rainSpeed: 4, rainRate: 40, fishRate: 130, puddles: 2 },
-      { name: '大雨', rainSpeed: 5, rainRate: 35, fishRate: 120, puddles: 3 },
-      { name: '暴雨', rainSpeed: 6, rainRate: 28, fishRate: 100, puddles: 4 },
-      { name: '夜晚', rainSpeed: 7, rainRate: 25, fishRate: 90, puddles: 5, dark: true }
+      { name: '小雨', rainSpeed: 4, rainRate: 45, fishRate: 120, puddles: 1, lightning: false, bombs: false },
+      { name: '中雨', rainSpeed: 5, rainRate: 38, fishRate: 100, puddles: 2, lightning: false, bombs: false },
+      { name: '大雨', rainSpeed: 6, rainRate: 32, fishRate: 90, puddles: 3, lightning: true, bombs: false },
+      { name: '暴雨', rainSpeed: 7, rainRate: 26, fishRate: 80, puddles: 4, lightning: true, bombs: true },
+      { name: '夜晚', rainSpeed: 8, rainRate: 22, fishRate: 70, puddles: 5, lightning: true, bombs: true, dark: true }
     ];
 
     // ========== 游戏状态 ==========
@@ -365,12 +434,28 @@
     let combo = 0;
     let comboTimer = 0;
     let hearts = 3;
-    let player, rains, fishes, puddles, house;
+    let player, rains, fishes, puddles, house, powerups, lightnings, bombs;
     let keys = { left: false, right: false };
     let audioCtx;
     let catType = 0;
     let invincible = false;
     let invincibleTimer = 0;
+    let wetEffect = false;
+    let wetTimer = 0;
+    
+    // 道具状态
+    let activePowerups = {
+      umbrella: false,
+      boots: false,
+      magnet: false,
+      speed: false
+    };
+    let powerupTimers = {
+      umbrella: 0,
+      boots: 0,
+      magnet: 0,
+      speed: 0
+    };
 
     // 存档
     let saveData = {
@@ -480,6 +565,16 @@
           osc.start(now);
           osc.stop(now + 0.1);
           break;
+        case 'powerup':
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523, now);
+          osc.frequency.setValueAtTime(659, now + 0.1);
+          osc.frequency.setValueAtTime(784, now + 0.2);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+          break;
         case 'hit':
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(200, now);
@@ -509,6 +604,15 @@
           osc.start(now);
           osc.stop(now + 0.15);
           break;
+        case 'explode':
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+          gain.gain.setValueAtTime(0.5, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.4);
+          break;
       }
     }
 
@@ -516,12 +620,10 @@
     function initLevel(level) {
       const levelConfig = LEVELS[level - 1];
       
-      // 随机选择小猫颜色
       if (level === 1) {
         catType = Math.floor(Math.random() * CONFIG.colors.cat.length);
       }
       
-      // 玩家初始位置（左侧）
       player = {
         x: 50,
         y: canvas.height - 100,
@@ -531,10 +633,9 @@
         slowed: false
       };
       
-      // 房子位置（右侧）
       house = {
-        x: canvas.width - 90,
-        y: canvas.height - 90,
+        x: canvas.width - 100,
+        y: canvas.height - 100,
         width: CONFIG.doorWidth,
         height: CONFIG.doorHeight
       };
@@ -543,19 +644,26 @@
       puddles = [];
       for (let i = 0; i < levelConfig.puddles; i++) {
         puddles.push({
-          x: 80 + Math.random() * (canvas.width - 200),
-          y: 150 + i * (canvas.height - 250) / levelConfig.puddles,
-          width: 60 + Math.random() * 40,
-          height: 20 + Math.random() * 15
+          x: 150 + Math.random() * (canvas.width - 300),
+          y: canvas.height - 40,
+          width: 70 + Math.random() * 50,
+          height: 25
         });
       }
       
-      // 雨滴、小鱼干
       rains = [];
       fishes = [];
+      powerups = [];
+      lightnings = [];
+      bombs = [];
       frames = 0;
       levelScore = 0;
       combo = 0;
+      
+      // 重置道具状态
+      activePowerups = { umbrella: false, boots: false, magnet: false, speed: false };
+      powerupTimers = { umbrella: 0, boots: 0, magnet: 0, speed: 0 };
+      updatePowerupIcons();
     }
 
     function startGame() {
@@ -593,6 +701,7 @@
       levelScore = 0;
       combo = 0;
       invincible = false;
+      wetEffect = false;
       initLevel(currentLevel);
       
       document.getElementById('gameOverScreen').classList.add('hidden');
@@ -607,6 +716,7 @@
       levelScore = 0;
       combo = 0;
       invincible = false;
+      wetEffect = false;
       initLevel(currentLevel);
       
       document.getElementById('gameOverScreen').classList.add('hidden');
@@ -616,7 +726,6 @@
     function nextLevel() {
       currentLevel++;
       if (currentLevel > LEVELS.length) {
-        // 全通关
         allClear();
         return;
       }
@@ -626,6 +735,7 @@
       levelScore = 0;
       combo = 0;
       invincible = false;
+      wetEffect = false;
       initLevel(currentLevel);
       
       document.getElementById('winScreen').classList.add('hidden');
@@ -658,7 +768,6 @@
       gameState = 'win';
       playSound('win');
       score += levelScore;
-      // 生命奖励
       score += hearts * 100;
       saveGame();
       document.getElementById('winLevelScore').textContent = levelScore;
@@ -670,6 +779,13 @@
       document.getElementById('levelDisplay').textContent = `🏠 ${currentLevel}/5 ${levelConfig.name}`;
       document.getElementById('heartsDisplay').textContent = '❤️'.repeat(hearts);
       document.getElementById('scoreDisplay').textContent = `🐟 ${score}`;
+    }
+
+    function updatePowerupIcons() {
+      document.getElementById('umbrellaIcon').classList.toggle('active', activePowerups.umbrella);
+      document.getElementById('bootsIcon').classList.toggle('active', activePowerups.boots);
+      document.getElementById('magnetIcon').classList.toggle('active', activePowerups.magnet);
+      document.getElementById('speedIcon').classList.toggle('active', activePowerups.speed);
     }
 
     function showCombo() {
@@ -691,6 +807,16 @@
       setTimeout(() => floatEl.remove(), 1000);
     }
 
+    function showDamageText(x, y, text) {
+      const damageEl = document.createElement('div');
+      damageEl.className = 'damageText';
+      damageEl.textContent = text;
+      damageEl.style.left = x + 'px';
+      damageEl.style.top = y + 'px';
+      document.getElementById('gameContainer').appendChild(damageEl);
+      setTimeout(() => damageEl.remove(), 800);
+    }
+
     // ========== 更新 ==========
     function update() {
       if (gameState !== 'playing') return;
@@ -698,9 +824,20 @@
       frames++;
       const levelConfig = LEVELS[currentLevel - 1];
       
+      // 道具计时器
+      for (const [key, value] of Object.entries(powerupTimers)) {
+        if (value > 0) {
+          powerupTimers[key]--;
+          if (powerupTimers[key] <= 0) {
+            activePowerups[key] = false;
+          }
+        }
+      }
+      updatePowerupIcons();
+      
       // 玩家移动
-      let speed = CONFIG.playerSpeed;
-      if (player.slowed) {
+      let speed = activePowerups.speed ? CONFIG.playerSpeed * 1.8 : CONFIG.playerSpeed;
+      if (player.slowed && !activePowerups.boots) {
         speed = CONFIG.playerSpeed * 0.5;
         if (frames % 10 === 0) player.slowed = false;
       }
@@ -708,7 +845,6 @@
       if (keys.left) player.x -= speed;
       if (keys.right) player.x += speed;
       
-      // 边界限制
       player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
       
       // 生成雨滴
@@ -716,8 +852,8 @@
         rains.push({
           x: Math.random() * canvas.width,
           y: -20,
-          width: 4 + Math.random() * 4,
-          height: 15 + Math.random() * 10,
+          width: 5 + Math.random() * 5,
+          height: 20 + Math.random() * 15,
           speed: levelConfig.rainSpeed + Math.random() * 2
         });
       }
@@ -727,28 +863,112 @@
         fishes.push({
           x: 30 + Math.random() * (canvas.width - 60),
           y: -20,
-          width: 30,
-          height: 20,
+          width: 35,
+          height: 25,
+          speed: 2.5
+        });
+      }
+      
+      // 生成道具
+      if (frames % CONFIG.powerupSpawnRate === 0 && Math.random() < 0.4) {
+        const types = ['umbrella', 'boots', 'magnet', 'speed'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        powerups.push({
+          x: 50 + Math.random() * (canvas.width - 100),
+          y: -30,
+          width: 35,
+          height: 35,
+          type: type,
           speed: 2
         });
       }
       
-      // 更新雨滴位置
+      // 生成闪电
+      if (levelConfig.lightning && frames % CONFIG.lightningSpawnRate === 0) {
+        const warnTime = 60;
+        lightnings.push({
+          x: Math.random() * canvas.width,
+          y: -50,
+          width: 40,
+          height: 100,
+          warnTime: warnTime,
+          active: false
+        });
+      }
+      
+      // 生成炸弹
+      if (levelConfig.bombs && frames % CONFIG.bombSpawnRate === 0) {
+        bombs.push({
+          x: Math.random() * canvas.width,
+          y: -30,
+          width: 30,
+          height: 30,
+          speed: 3,
+          exploded: false
+        });
+      }
+      
+      // 更新雨滴
       for (let i = rains.length - 1; i >= 0; i--) {
         rains[i].y += rains[i].speed;
         if (rains[i].y > canvas.height) rains.splice(i, 1);
       }
       
-      // 更新小鱼干位置
+      // 更新小鱼干（磁铁效果）
       for (let i = fishes.length - 1; i >= 0; i--) {
+        if (activePowerups.magnet) {
+          const dx = (player.x + player.width/2) - (fishes[i].x + fishes[i].width/2);
+          const dy = (player.y + player.height/2) - (fishes[i].y + fishes[i].height/2);
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 200) {
+            fishes[i].x += dx * 0.08;
+            fishes[i].y += dy * 0.08;
+          }
+        }
         fishes[i].y += fishes[i].speed;
         if (fishes[i].y > canvas.height) fishes.splice(i, 1);
+      }
+      
+      // 更新道具
+      for (let i = powerups.length - 1; i >= 0; i--) {
+        powerups[i].y += powerups[i].speed;
+        if (powerups[i].y > canvas.height) powerups.splice(i, 1);
+      }
+      
+      // 更新闪电
+      for (let i = lightnings.length - 1; i >= 0; i--) {
+        lightnings[i].warnTime--;
+        if (lightnings[i].warnTime <= 0) {
+          lightnings[i].active = true;
+          lightnings[i].y += 15;
+        }
+        if (lightnings[i].y > canvas.height) lightnings.splice(i, 1);
+      }
+      
+      // 更新炸弹
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        bombs[i].y += bombs[i].speed;
+        if (bombs[i].y > canvas.height && !bombs[i].exploded) {
+          bombs[i].exploded = true;
+          bombs[i].explosionFrame = 30;
+          playSound('explode');
+        }
+        if (bombs[i].exploded) {
+          bombs[i].explosionFrame--;
+          if (bombs[i].explosionFrame <= 0) bombs.splice(i, 1);
+        }
       }
       
       // 无敌时间
       if (invincible) {
         invincibleTimer--;
         if (invincibleTimer <= 0) invincible = false;
+      }
+      
+      // 湿身效果
+      if (wetEffect) {
+        wetTimer--;
+        if (wetTimer <= 0) wetEffect = false;
       }
       
       // 连击计时
@@ -758,13 +978,16 @@
       }
       
       // 碰撞检测 - 雨滴
-      if (!invincible) {
+      if (!invincible && !activePowerups.umbrella) {
         for (const rain of rains) {
           if (checkCollision(player, rain)) {
             hearts--;
             invincible = true;
             invincibleTimer = 60;
+            wetEffect = true;
+            wetTimer = 120;
             playSound('hit');
+            showDamageText(player.x, player.y, '-1❤️');
             combo = 0;
             updateUI();
             if (hearts <= 0) {
@@ -792,21 +1015,83 @@
         }
       }
       
-      // 碰撞检测 - 水坑
-      for (const puddle of puddles) {
-        if (checkCollision(player, puddle)) {
-          player.slowed = true;
-          if (frames % 30 === 0) {
-            playSound('puddle');
+      // 碰撞检测 - 道具
+      for (let i = powerups.length - 1; i >= 0; i--) {
+        if (checkCollision(player, powerups[i])) {
+          const type = powerups[i].type;
+          activePowerups[type] = true;
+          const durations = { umbrella: 300, boots: 600, magnet: 480, speed: 300 };
+          powerupTimers[type] = durations[type];
+          playSound('powerup');
+          showFloatScore(powerups[i].x, powerups[i].y, getPowerupText(type));
+          powerups.splice(i, 1);
+        }
+      }
+      
+      // 碰撞检测 - 闪电
+      if (!invincible && !activePowerups.umbrella) {
+        for (const lightning of lightnings) {
+          if (lightning.active && checkCollision(player, lightning)) {
+            hearts--;
+            invincible = true;
+            invincibleTimer = 60;
+            wetEffect = true;
+            wetTimer = 120;
+            playSound('hit');
+            showDamageText(player.x, player.y, '⚡-1❤️');
+            combo = 0;
+            updateUI();
+            if (hearts <= 0) {
+              gameOver();
+              return;
+            }
+            break;
           }
         }
       }
       
-      // 碰撞检测 - 房子（胜利）
+      // 碰撞检测 - 炸弹爆炸范围
+      for (const bomb of bombs) {
+        if (bomb.exploded && bomb.explosionFrame > 15) {
+          const dx = (player.x + player.width/2) - (bomb.x + bomb.width/2);
+          const dy = (player.y + player.height/2) - (bomb.y + bomb.height/2);
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist < 80 && !invincible && !activePowerups.umbrella) {
+            hearts--;
+            invincible = true;
+            invincibleTimer = 60;
+            wetEffect = true;
+            wetTimer = 120;
+            playSound('hit');
+            showDamageText(player.x, player.y, '💥-1❤️');
+            combo = 0;
+            updateUI();
+            if (hearts <= 0) {
+              gameOver();
+              return;
+            }
+          }
+        }
+      }
+      
+      // 碰撞检测 - 水坑
+      for (const puddle of puddles) {
+        if (checkCollision(player, puddle) && !activePowerups.boots) {
+          player.slowed = true;
+          if (frames % 30 === 0) playSound('puddle');
+        }
+      }
+      
+      // 碰撞检测 - 房子
       if (checkCollision(player, house)) {
         winLevel();
         return;
       }
+    }
+
+    function getPowerupText(type) {
+      const texts = { umbrella: '☂️无敌!', boots: '👢防水!', magnet: '🧲吸附!', speed: '⚡加速!' };
+      return texts[type];
     }
 
     function checkCollision(rect1, rect2) {
@@ -822,12 +1107,11 @@
       
       // 背景
       if (levelConfig.dark) {
-        // 夜晚
         ctx.fillStyle = '#1a1a2e';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         // 星星
         ctx.fillStyle = '#fff';
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 80; i++) {
           const x = (i * 37) % canvas.width;
           const y = (i * 23) % (canvas.height - 100);
           ctx.beginPath();
@@ -835,15 +1119,14 @@
           ctx.fill();
         }
       } else {
-        // 白天
         ctx.fillStyle = levelConfig.rainRate < 35 ? '#87CEEB' : '#5C7C8A';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
       
-      // 背景网格/雨丝
-      ctx.strokeStyle = levelConfig.dark ? 'rgba(255,255,255,0.1)' : 'rgba(79,195,247,0.3)';
+      // 背景网格
+      ctx.strokeStyle = levelConfig.dark ? 'rgba(255,255,255,0.1)' : 'rgba(79,195,247,0.2)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < canvas.width; x += 40) {
+      for (let x = 0; x < canvas.width; x += 50) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
         ctx.lineTo(x, canvas.height);
@@ -851,6 +1134,10 @@
       }
       
       if (gameState === 'start') return;
+      
+      // 画地面
+      ctx.fillStyle = '#4A5568';
+      ctx.fillRect(0, canvas.height - 15, canvas.width, 15);
       
       // 画水坑
       for (const puddle of puddles) {
@@ -871,7 +1158,7 @@
       // 画房子
       drawHouse();
       
-      // 画玩家（小猫）
+      // 画玩家
       drawCat();
       
       // 画雨滴
@@ -883,6 +1170,21 @@
       for (const fish of fishes) {
         drawFish(fish);
       }
+      
+      // 画道具
+      for (const powerup of powerups) {
+        drawPowerup(powerup);
+      }
+      
+      // 画闪电
+      for (const lightning of lightnings) {
+        drawLightning(lightning);
+      }
+      
+      // 画炸弹
+      for (const bomb of bombs) {
+        drawBomb(bomb);
+      }
     }
 
     function drawCat() {
@@ -890,74 +1192,84 @@
       const y = player.y;
       const color = CONFIG.colors.cat[catType];
       
-      // 无敌闪烁
       if (invincible && Math.floor(frames / 4) % 2 === 0) return;
+      
+      // 湿身效果
+      if (wetEffect) {
+        ctx.globalAlpha = 0.8;
+        ctx.fillStyle = 'rgba(79,195,247,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(x + 25, y + 30, 22, 26, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       
       // 身体
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.ellipse(x + 20, y + 30, 18, 22, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + 25, y + 35, 20, 25, 0, 0, Math.PI * 2);
       ctx.fill();
       
       // 头
       ctx.beginPath();
-      ctx.arc(x + 20, y + 15, 16, 0, Math.PI * 2);
+      ctx.arc(x + 25, y + 18, 18, 0, Math.PI * 2);
       ctx.fill();
       
       // 耳朵
       ctx.beginPath();
-      ctx.moveTo(x + 8, y + 5);
+      ctx.moveTo(x + 10, y + 8);
       ctx.lineTo(x + 4, y - 8);
-      ctx.lineTo(x + 16, y + 2);
+      ctx.lineTo(x + 18, y + 5);
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(x + 32, y + 5);
-      ctx.lineTo(x + 36, y - 8);
-      ctx.lineTo(x + 24, y + 2);
+      ctx.moveTo(x + 40, y + 8);
+      ctx.lineTo(x + 46, y - 8);
+      ctx.lineTo(x + 32, y + 5);
       ctx.fill();
       
       // 眼睛
       ctx.fillStyle = '#333';
       ctx.beginPath();
-      ctx.arc(x + 14, y + 12, 3, 0, Math.PI * 2);
-      ctx.arc(x + 26, y + 12, 3, 0, Math.PI * 2);
+      ctx.arc(x + 18, y + 15, 3.5, 0, Math.PI * 2);
+      ctx.arc(x + 32, y + 15, 3.5, 0, Math.PI * 2);
       ctx.fill();
       
       // 鼻子
       ctx.fillStyle = '#FF6B6B';
       ctx.beginPath();
-      ctx.arc(x + 20, y + 18, 2, 0, Math.PI * 2);
+      ctx.arc(x + 25, y + 22, 2.5, 0, Math.PI * 2);
       ctx.fill();
       
       // 胡须
       ctx.strokeStyle = color === '#FFFFFF' ? '#333' : '#fff';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(x + 8, y + 18);
-      ctx.lineTo(x - 5, y + 16);
-      ctx.moveTo(x + 8, y + 20);
-      ctx.lineTo(x - 5, y + 22);
-      ctx.moveTo(x + 32, y + 18);
-      ctx.lineTo(x + 45, y + 16);
-      ctx.moveTo(x + 32, y + 20);
-      ctx.lineTo(x + 45, y + 22);
+      ctx.moveTo(x + 10, y + 22);
+      ctx.lineTo(x - 8, y + 20);
+      ctx.moveTo(x + 10, y + 25);
+      ctx.lineTo(x - 8, y + 27);
+      ctx.moveTo(x + 40, y + 22);
+      ctx.lineTo(x + 58, y + 20);
+      ctx.moveTo(x + 40, y + 25);
+      ctx.lineTo(x + 58, y + 27);
       ctx.stroke();
       
       // 尾巴
-      const tailSwing = Math.sin(frames * 0.15) * 8;
+      const tailSwing = Math.sin(frames * 0.15) * 10;
       ctx.beginPath();
-      ctx.moveTo(x + 35, y + 35);
-      ctx.quadraticCurveTo(x + 50 + tailSwing, y + 25, x + 48 + tailSwing, y + 15);
+      ctx.moveTo(x + 42, y + 40);
+      ctx.quadraticCurveTo(x + 60 + tailSwing, y + 30, x + 58 + tailSwing, y + 18);
       ctx.strokeStyle = color;
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 8;
       ctx.lineCap = 'round';
       ctx.stroke();
       
       // 腿
-      const legSwing = Math.sin(frames * 0.3) * 5;
+      const legSwing = Math.sin(frames * 0.3) * 6;
       ctx.fillStyle = color;
-      ctx.fillRect(x + 12, y + 48, 5, 8 + legSwing);
-      ctx.fillRect(x + 23, y + 48, 5, 8 - legSwing);
+      ctx.fillRect(x + 15, y + 55, 6, 10 + legSwing);
+      ctx.fillRect(x + 29, y + 55, 6, 10 - legSwing);
+      
+      ctx.globalAlpha = 1;
     }
 
     function drawRain(rain) {
@@ -966,64 +1278,145 @@
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(rain.x, rain.y);
-      ctx.lineTo(rain.x + 2, rain.y + rain.height);
+      ctx.lineTo(rain.x + 3, rain.y + rain.height);
       ctx.stroke();
     }
 
     function drawFish(fish) {
-      // 发光
       ctx.shadowColor = CONFIG.colors.fish;
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 12;
       
-      // 鱼身
       ctx.fillStyle = CONFIG.colors.fish;
       ctx.beginPath();
-      ctx.ellipse(fish.x + 15, fish.y + 10, 12, 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(fish.x + 17, fish.y + 12, 14, 10, 0, 0, Math.PI * 2);
       ctx.fill();
       
-      // 鱼尾
       ctx.beginPath();
-      ctx.moveTo(fish.x + 25, fish.y + 10);
-      ctx.lineTo(fish.x + 35, fish.y + 5);
-      ctx.lineTo(fish.x + 35, fish.y + 15);
+      ctx.moveTo(fish.x + 28, fish.y + 12);
+      ctx.lineTo(fish.x + 40, fish.y + 5);
+      ctx.lineTo(fish.x + 40, fish.y + 19);
       ctx.fill();
       
-      // 眼睛
       ctx.fillStyle = '#333';
       ctx.beginPath();
-      ctx.arc(fish.x + 8, fish.y + 8, 2, 0, Math.PI * 2);
+      ctx.arc(fish.x + 10, fish.y + 10, 2.5, 0, Math.PI * 2);
       ctx.fill();
       
       ctx.shadowBlur = 0;
+    }
+
+    function drawPowerup(powerup) {
+      ctx.shadowColor = CONFIG.colors[powerup.type];
+      ctx.shadowBlur = 15;
+      
+      const icons = { umbrella: '☂️', boots: '👢', magnet: '🧲', speed: '⚡' };
+      const colors = { umbrella: '#FF6B6B', boots: '#4ECDC4', magnet: '#A78BFA', speed: '#FBBF24' };
+      
+      ctx.fillStyle = colors[powerup.type];
+      ctx.beginPath();
+      ctx.arc(powerup.x + 17, powerup.y + 17, 18, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(icons[powerup.type], powerup.x + 17, powerup.y + 17);
+      
+      ctx.shadowBlur = 0;
+    }
+
+    function drawLightning(lightning) {
+      if (lightning.warnTime > 0) {
+        // 预警
+        ctx.fillStyle = `rgba(252,211,77,${0.3 + Math.sin(frames * 0.5) * 0.2})`;
+        ctx.fillRect(lightning.x, 0, lightning.width, canvas.height);
+        
+        ctx.fillStyle = '#FCD34D';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('⚠️', lightning.x + lightning.width/2, 30);
+      } else {
+        // 闪电
+        ctx.fillStyle = '#FCD34D';
+        ctx.shadowColor = '#FCD34D';
+        ctx.shadowBlur = 20;
+        
+        ctx.beginPath();
+        ctx.moveTo(lightning.x + lightning.width/2, lightning.y);
+        ctx.lineTo(lightning.x + lightning.width, lightning.y + 40);
+        ctx.lineTo(lightning.x + lightning.width/3, lightning.y + 40);
+        ctx.lineTo(lightning.x + lightning.width/2 + 10, lightning.y + lightning.height);
+        ctx.lineTo(lightning.x, lightning.y + 40);
+        ctx.lineTo(lightning.x + lightning.width*2/3, lightning.y + 40);
+        ctx.closePath();
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    function drawBomb(bomb) {
+      if (!bomb.exploded) {
+        ctx.fillStyle = CONFIG.colors.bomb;
+        ctx.beginPath();
+        ctx.arc(bomb.x + 15, bomb.y + 15, 15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 引线
+        ctx.strokeStyle = '#8B4513';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(bomb.x + 15, bomb.y + 5);
+        ctx.lineTo(bomb.x + 20, bomb.y - 5);
+        ctx.stroke();
+        
+        // 火花
+        ctx.fillStyle = '#FCD34D';
+        ctx.beginPath();
+        ctx.arc(bomb.x + 20, bomb.y - 8, 4 + Math.random() * 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 爆炸
+        const radius = 80 * (bomb.explosionFrame / 30);
+        const gradient = ctx.createRadialGradient(
+          bomb.x + 15, bomb.y + 15, 0,
+          bomb.x + 15, bomb.y + 15, radius
+        );
+        gradient.addColorStop(0, 'rgba(255,255,255,0.9)');
+        gradient.addColorStop(0.3, 'rgba(255,100,50,0.7)');
+        gradient.addColorStop(0.6, 'rgba(255,50,0,0.4)');
+        gradient.addColorStop(1, 'rgba(255,0,0,0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(bomb.x + 15, bomb.y + 15, radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     function drawHouse() {
       const x = house.x;
       const y = house.y;
       
-      // 房子主体
       ctx.fillStyle = CONFIG.colors.house;
-      ctx.fillRect(x, y + 20, house.width, house.height - 20);
+      ctx.fillRect(x, y + 25, house.width, house.height - 25);
       
-      // 屋顶
       ctx.beginPath();
-      ctx.moveTo(x - 10, y + 20);
-      ctx.lineTo(x + house.width/2, y - 10);
-      ctx.lineTo(x + house.width + 10, y + 20);
+      ctx.moveTo(x - 15, y + 25);
+      ctx.lineTo(x + house.width/2, y - 15);
+      ctx.lineTo(x + house.width + 15, y + 25);
       ctx.fill();
       
-      // 门
       ctx.fillStyle = '#8D6E63';
-      ctx.fillRect(x + 20, y + 40, 20, 40);
+      ctx.fillRect(x + 25, y + 45, 25, 45);
       
-      // 窗户（发光）
       ctx.fillStyle = CONFIG.colors.houseLight;
-      ctx.fillRect(x + 5, y + 25, 12, 12);
-      ctx.fillRect(x + 43, y + 25, 12, 12);
+      ctx.fillRect(x + 8, y + 30, 15, 15);
+      ctx.fillRect(x + house.width - 23, y + 30, 15, 15);
       
-      // 烟囱
       ctx.fillStyle = '#5D4037';
-      ctx.fillRect(x + 35, y - 20, 12, 25);
+      ctx.fillRect(x + 40, y - 25, 15, 30);
     }
 
     // ========== 游戏循环 ==========
