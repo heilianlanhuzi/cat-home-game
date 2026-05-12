@@ -208,7 +208,7 @@
       { name: '钥匙', rainSpeed: 8, rainRate: 22, fishRate: 70, puddles: 4, puddleTrigger: 0, lightning: true, bombs: true, tornadoes: true, fakeDoor: false, keys: 3, dark: true }
     ];
     let canvas, ctx, gameState = 'start', currentLevel = 1, frames = 0, score = 0, levelScore = 0, combo = 0, comboTimer = 0, hearts = 3;
-    let player, rains = [], fishes = [], puddles = [], house, powerups = [], lightnings = [], bombs = [], tornadoes = [], keys = [];
+    let player, rains = [], fishes = [], puddles = [], house = null, powerups = [], lightnings = [], bombs = [], tornadoes = [], keys = [];
     let keysCollected = 0, doorUnlocked = false, puddleTriggered = false, fakeDoorShown = false, realDoorPos = 0;
     let audioCtx, catType = 0, invincible = false, invincibleTimer = 0, wetEffect = false, wetTimer = 0;
     let activePowerups = { umbrella: false, boots: false, magnet: false, speed: false };
@@ -265,14 +265,15 @@
         case 'explode': osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.exponentialRampToValueAtTime(30, now + 0.4); gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4); osc.start(now); osc.stop(now + 0.4); break;
         case 'key': osc.type = 'sine'; osc.frequency.setValueAtTime(659, now); osc.frequency.setValueAtTime(784, now + 0.1); osc.frequency.setValueAtTime(988, now + 0.2); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3); break;
         case 'fake': osc.type = 'square'; osc.frequency.setValueAtTime(200, now); osc.frequency.linearRampToValueAtTime(100, now + 0.3); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3); break;
+        case 'appear': osc.type = 'sine'; osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(880, now + 0.2); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.3); osc.start(now); osc.stop(now + 0.3); break;
       }
     }
     function initLevel(level) {
       const cfg = LEVELS[level - 1];
       if (level === 1) catType = Math.floor(Math.random() * CONFIG.colors.cat.length);
       player = { x: 50, y: canvas.height - 100, width: CONFIG.playerWidth, height: CONFIG.playerHeight, slowed: false };
-      house = { x: canvas.width - 100, y: canvas.height - 100, width: CONFIG.doorWidth, height: CONFIG.doorHeight, isFake: false };
-      realDoorPos = canvas.width - 100;
+      house = { x: canvas.width - 100, y: canvas.height - 100, width: CONFIG.doorWidth, height: CONFIG.doorHeight, visible: true };
+      realDoorPos = 100;
       puddles = []; rains = []; fishes = []; powerups = []; lightnings = []; bombs = []; tornadoes = []; keys = [];
       frames = 0; levelScore = 0; combo = 0; keysCollected = 0; doorUnlocked = false; puddleTriggered = false; fakeDoorShown = false;
       if (cfg.puddleTrigger > 0) {
@@ -285,16 +286,21 @@
         }
       }
       if (cfg.fakeDoor) {
+        house.visible = true;
         house.isFake = true;
-        realDoorPos = 100;
       }
       if (cfg.keys > 0) {
         document.getElementById('keyProgress').style.display = 'block';
         document.getElementById('keyProgress').textContent = `🔑 0/${cfg.keys}`;
         const keyPositions = [100, 400, 700];
         for (let i = 0; i < cfg.keys; i++) {
-          keys.push({ x: keyPositions[i], y: 80 + i * 60, width: 30, height: 30, collected: false });
+          keys.push({ x: keyPositions[i], y: 80 + i * 60, width: 30, height: 30, collected: false, visible: false });
         }
+        setTimeout(() => {
+          keys.forEach((k, i) => {
+            setTimeout(() => { k.visible = true; playSound('powerup'); }, i * 500);
+          });
+        }, 2000);
       } else {
         document.getElementById('keyProgress').style.display = 'none';
       }
@@ -417,7 +423,14 @@
         fakeDoorShown = true;
         playSound('fake');
         showMessage('🚪 这是假门！');
-        house.isFake = false;
+        house.visible = false;
+        setTimeout(() => {
+          house.x = realDoorPos;
+          house.visible = true;
+          house.isFake = false;
+          playSound('appear');
+          showMessage('🏠 真门在这！');
+        }, 1000);
       }
       if (frames % cfg.rainRate === 0) {
         rains.push({ x: Math.random() * canvas.width, y: -20, width: 5 + Math.random() * 5, height: 20 + Math.random() * 15, speed: cfg.rainSpeed + Math.random() * 2 });
@@ -468,7 +481,7 @@
         if (tornadoes[i].x < -100) tornadoes.splice(i, 1);
       }
       for (let i = keys.length - 1; i >= 0; i--) {
-        if (!keys[i].collected) {
+        if (!keys[i].collected && keys[i].visible) {
           const dx = (player.x + player.width/2) - (keys[i].x + keys[i].width/2);
           const dy = (player.y + player.height/2) - (keys[i].y + keys[i].height/2);
           keys[i].x += dx * 0.03; keys[i].y += dy * 0.03;
@@ -541,7 +554,7 @@
         if (!p.hidden && checkCollision(player, p) && !activePowerups.boots) { player.slowed = true; if (frames % 30 === 0) playSound('puddle'); }
       }
       for (let i = keys.length - 1; i >= 0; i--) {
-        if (!keys[i].collected && checkCollision(player, keys[i])) {
+        if (!keys[i].collected && keys[i].visible && checkCollision(player, keys[i])) {
           keys[i].collected = true;
           keysCollected++;
           playSound('key');
@@ -554,8 +567,9 @@
           }
         }
       }
-      const targetDoor = cfg.keys > 0 && !doorUnlocked ? { x: canvas.width - 100, y: house.y, width: house.width, height: house.height } : (cfg.fakeDoor && !fakeDoorShown ? { x: canvas.width - 100, y: house.y, width: house.width, height: house.height } : { x: cfg.fakeDoor ? realDoorPos : house.x, y: house.y, width: house.width, height: house.height });
-      if (checkCollision(player, targetDoor)) {
+      const targetDoorX = cfg.keys > 0 ? (doorUnlocked ? realDoorPos : canvas.width - 100) : (cfg.fakeDoor ? (fakeDoorShown ? realDoorPos : canvas.width - 100) : house.x);
+      const targetDoor = { x: targetDoorX, y: house.y, width: house.width, height: house.height };
+      if (house.visible && checkCollision(player, targetDoor)) {
         if (cfg.keys > 0 && !doorUnlocked) {
           showMessage('🔒 需要钥匙！');
         } else {
@@ -582,14 +596,15 @@
       if (gameState === 'start') return;
       ctx.fillStyle = '#4A5568'; ctx.fillRect(0, canvas.height - 15, canvas.width, 15);
       for (const p of puddles) { if (!p.hidden) { ctx.fillStyle = CONFIG.colors.puddle; ctx.beginPath(); ctx.ellipse(p.x + p.width/2, p.y + p.height/2, p.width/2, p.height/2, 0, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke(); } }
-      drawHouse(); drawCat();
+      if (house.visible) drawHouse();
+      drawCat();
       for (const r of rains) drawRain(r);
       for (const f of fishes) drawFish(f);
       for (const p of powerups) drawPowerup(p);
       for (const l of lightnings) drawLightning(l);
       for (const b of bombs) drawBomb(b);
       for (const t of tornadoes) drawTornado(t);
-      for (const k of keys) { if (!k.collected) drawKey(k); }
+      for (const k of keys) { if (!k.collected && k.visible) drawKey(k); }
     }
     function drawCat() {
       const x = player.x, y = player.y, color = CONFIG.colors.cat[catType];
@@ -618,7 +633,7 @@
     function drawKey(k) { ctx.shadowColor = CONFIG.colors.key; ctx.shadowBlur = 20; ctx.fillStyle = CONFIG.colors.key; ctx.beginPath(); ctx.arc(k.x + 15, k.y + 15, 12, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#B8860B'; ctx.beginPath(); ctx.arc(k.x + 15, k.y + 15, 8, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#FFD93D'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(k.x + 15, k.y + 5); ctx.lineTo(k.x + 15, k.y - 8); ctx.stroke(); ctx.shadowBlur = 0; }
     function drawHouse() {
       const x = house.x, y = house.y;
-      if (currentLevel === 3 && !fakeDoorShown) {
+      if (currentLevel === 3 && house.isFake && !fakeDoorShown) {
         ctx.fillStyle = '#FF6B6B'; ctx.globalAlpha = 0.7;
       } else {
         ctx.fillStyle = CONFIG.colors.house;
