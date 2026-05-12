@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🐱 小猫回家</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+    
+    #gameContainer {
+      position: relative;
+      width: 400px;
+      height: 600px;
+      background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    #gameCanvas {
+      display: block;
+    }
+    
+    /* UI 层 */
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    .ui-panel {
+      background: rgba(255,255,255,0.9);
+      border-radius: 20px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    #scoreDisplay {
+      font-size: 18px;
+      font-weight: bold;
+      color: #FF6B6B;
+    }
+    
+    #heartsDisplay {
+      font-size: 20px;
+    }
+    
+    #levelDisplay {
+      font-size: 16px;
+      font-weight: bold;
+      color: #4ECDC4;
+    }
+    
+    /* 屏幕覆盖层 */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      color: #fff;
+      text-align: center;
+    }
+    
+    .screen h1 {
+      font-size: 36px;
+      margin-bottom: 16px;
+      text-shadow: 0 0 20px rgba(255,255,255,0.5);
+    }
+    
+    .screen h1 span {
+      font-size: 48px;
+    }
+    
+    .screen p {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #ddd;
+      line-height: 1.6;
+    }
+    
+    .screen .subtitle {
+      font-size: 14px;
+      color: #aaa;
+      margin-bottom: 30px;
+    }
+    
+    .btn {
+      padding: 14px 50px;
+      font-size: 20px;
+      background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.3s;
+      box-shadow: 0 6px 20px rgba(255,107,107,0.4);
+      margin: 8px;
+    }
+    
+    .btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 8px 30px rgba(255,107,107,0.6);
+    }
+    
+    .btn:active {
+      transform: scale(0.95);
+    }
+    
+    .btn-secondary {
+      background: linear-gradient(135deg, #4ECDC4 0%, #6EE7DE 100%);
+      box-shadow: 0 6px 20px rgba(78,205,196,0.4);
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    /* 手机控制按钮 */
+    #mobileControls {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: none;
+      justify-content: space-between;
+      padding: 0 30px;
+      z-index: 15;
+      pointer-events: none;
+    }
+    
+    .controlBtn {
+      width: 70px;
+      height: 70px;
+      background: rgba(255,255,255,0.4);
+      border: 3px solid rgba(255,255,255,0.8);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: auto;
+      backdrop-filter: blur(10px);
+      transition: all 0.15s;
+    }
+    
+    .controlBtn:active {
+      background: rgba(255,255,255,0.7);
+      transform: scale(0.9);
+    }
+    
+    @media (max-width: 500px) {
+      #gameContainer {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+      }
+      #mobileControls {
+        display: flex;
+      }
+    }
+    
+    /* 连击显示 */
+    #comboDisplay {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: bold;
+      color: #FFD93D;
+      text-shadow: 0 0 10px rgba(255,217,61,0.8);
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    #comboDisplay.show {
+      opacity: 1;
+      animation: comboPop 0.3s ease-out;
+    }
+    
+    @keyframes comboPop {
+      0% { transform: translateX(-50%) scale(0.8); }
+      50% { transform: translateX(-50%) scale(1.2); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    
+    /* 获得分数飘字 */
+    .floatScore {
+      position: absolute;
+      font-size: 20px;
+      font-weight: bold;
+      color: #FFD93D;
+      text-shadow: 0 0 5px rgba(255,217,61,0.8);
+      pointer-events: none;
+      animation: floatUp 1s ease-out forwards;
+      z-index: 10;
+    }
+    
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    
+    <!-- UI -->
+    <div id="ui">
+      <div class="ui-panel">
+        <span id="levelDisplay">🏠 1/5</span>
+      </div>
+      <div class="ui-panel">
+        <span id="heartsDisplay">❤️❤️❤️</span>
+      </div>
+      <div class="ui-panel">
+        <span id="scoreDisplay">🐟 0</span>
+      </div>
+    </div>
+    
+    <!-- 连击显示 -->
+    <div id="comboDisplay">🔥 Combo x2!</div>
+    
+    <!-- 开始界面 -->
+    <div id="startScreen" class="screen">
+      <h1><span>🐱</span> 小猫回家</h1>
+      <p class="subtitle">下雨天，小猫咪要赶回家～</p>
+      <p>🌧️ 躲避雨滴 | 🐟 收集小鱼干 | 🏠 到达房子</p>
+      <p style="margin-top: 15px; font-size: 14px; color: #888;">
+        💻 键盘 ← → 移动 | 📱 点击左右按钮
+      </p>
+      <button class="btn" id="startBtn">开始游戏</button>
+      <div id="continueContainer" class="hidden" style="margin-top: 10px;">
+        <button class="btn btn-secondary" id="continueBtn">继续第 X 关</button>
+      </div>
+      <div style="margin-top: 20px; font-size: 13px; color: #666;">
+        最高分：<span id="highScoreDisplay">0</span> | 
+        最高关卡：<span id="maxLevelDisplay">1</span>
+      </div>
+    </div>
+    
+    <!-- 游戏结束界面 -->
+    <div id="gameOverScreen" class="screen hidden">
+      <h1><span>😿</span> 哎呀！</h1>
+      <p id="deathReason">被雨滴淋湿了～</p>
+      <p style="margin-top: 15px; font-size: 14px;">
+        本关得分：<span id="levelScore" style="color: #FFD93D;">0</span>
+      </p>
+      <button class="btn" id="retryBtn">再试一次</button>
+      <button class="btn btn-secondary" id="restartBtn">重新开始</button>
+    </div>
+    
+    <!-- 通关界面 -->
+    <div id="winScreen" class="screen hidden">
+      <h1><span>🎉</span> 到家啦！</h1>
+      <p>小猫咪安全回家了～</p>
+      <p style="margin-top: 15px; font-size: 14px;">
+        本关得分：<span id="winLevelScore" style="color: #FFD93D;">0</span>
+      </p>
+      <button class="btn" id="nextLevelBtn">下一关</button>
+    </div>
+    
+    <!-- 全通关界面 -->
+    <div id="allClearScreen" class="screen hidden">
+      <h1><span>🏆</span> 恭喜通关！</h1>
+      <p>小猫咪成功回到了温暖的家！</p>
+      <p style="margin-top: 15px; font-size: 16px; color: #FFD93D;">
+        总分：<span id="finalScore">0</span>
+      </p>
+      <p style="font-size: 14px; color: #aaa; margin-top: 10px;">
+        最高分：<span id="finalHighScore">0</span>
+      </p>
+      <button class="btn" id="playAgainBtn">再玩一次</button>
+    </div>
+    
+    <!-- 手机控制 -->
+    <div id="mobileControls">
+      <div class="controlBtn" id="leftBtn">◀</div>
+      <div class="controlBtn" id="rightBtn">▶</div>
+    </div>
+  </div>
+
+  <script>
+    // ========== 游戏配置 ==========
+    const CONFIG = {
+      playerSpeed: 6,
+      playerWidth: 40,
+      playerHeight: 50,
+      rainBaseSpeed: 3,
+      rainSpeedIncrease: 0.8,
+      rainSpawnRate: 40,
+      fishSpawnRate: 120,
+      puddleSpawnRate: 180,
+      doorWidth: 60,
+      doorHeight: 80,
+      maxHearts: 3,
+      colors: {
+        cat: ['#FFA726', '#FFFFFF', '#424242'], // 橘、白、黑
+        rain: '#4FC3F7',
+        rainGlow: 'rgba(79,195,247,0.4)',
+        fish: '#FFD93D',
+        fishGlow: 'rgba(255,217,61,0.5)',
+        puddle: '#5C6BC0',
+        house: '#FF8A65',
+        houseLight: '#FFE082'
+      }
+    };
+
+    // ========== 关卡配置 ==========
+    const LEVELS = [
+      { name: '小雨', rainSpeed: 3, rainRate: 50, fishRate: 150, puddles: 0 },
+      { name: '中雨', rainSpeed: 4, rainRate: 40, fishRate: 130, puddles: 2 },
+      { name: '大雨', rainSpeed: 5, rainRate: 35, fishRate: 120, puddles: 3 },
+      { name: '暴雨', rainSpeed: 6, rainRate: 28, fishRate: 100, puddles: 4 },
+      { name: '夜晚', rainSpeed: 7, rainRate: 25, fishRate: 90, puddles: 5, dark: true }
+    ];
+
+    // ========== 游戏状态 ==========
+    let canvas, ctx;
+    let gameState = 'start';
+    let currentLevel = 1;
+    let frames = 0;
+    let score = 0;
+    let levelScore = 0;
+    let combo = 0;
+    let comboTimer = 0;
+    let hearts = 3;
+    let player, rains, fishes, puddles, house;
+    let keys = { left: false, right: false };
+    let audioCtx;
+    let catType = 0;
+    let invincible = false;
+    let invincibleTimer = 0;
+
+    // 存档
+    let saveData = {
+      highScore: 0,
+      maxLevel: 1,
+      continueLevel: 1
+    };
+
+    // ========== 存档系统 ==========
+    function loadSave() {
+      const saved = localStorage.getItem('catHomeSave');
+      if (saved) {
+        saveData = JSON.parse(saved);
+      }
+    }
+
+    function saveGame() {
+      saveData.highScore = Math.max(saveData.highScore, score);
+      saveData.maxLevel = Math.max(saveData.maxLevel, currentLevel);
+      saveData.continueLevel = currentLevel;
+      localStorage.setItem('catHomeSave', JSON.stringify(saveData));
+    }
+
+    function clearSave() {
+      localStorage.removeItem('catHomeSave');
+      saveData = { highScore: 0, maxLevel: 1, continueLevel: 1 };
+    }
+
+    // ========== 初始化 ==========
+    window.onload = () => {
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+      
+      loadSave();
+      updateSaveDisplay();
+      
+      // 绑定事件
+      document.getElementById('startBtn').addEventListener('click', startGame);
+      document.getElementById('continueBtn').addEventListener('click', continueGame);
+      document.getElementById('retryBtn').addEventListener('click', retryLevel);
+      document.getElementById('restartBtn').addEventListener('click', restartGame);
+      document.getElementById('nextLevelBtn').addEventListener('click', nextLevel);
+      document.getElementById('playAgainBtn').addEventListener('click', playAgain);
+      
+      // 键盘控制
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+      });
+      document.addEventListener('keyup', (e) => {
+        if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+        if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+      });
+      
+      // 手机触摸控制
+      const leftBtn = document.getElementById('leftBtn');
+      const rightBtn = document.getElementById('rightBtn');
+      
+      leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+      leftBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.left = false; });
+      rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+      rightBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.right = false; });
+      
+      leftBtn.addEventListener('mousedown', () => keys.left = true);
+      leftBtn.addEventListener('mouseup', () => keys.left = false);
+      rightBtn.addEventListener('mousedown', () => keys.right = true);
+      rightBtn.addEventListener('mouseup', () => keys.right = false);
+      
+      // 开始渲染循环
+      requestAnimationFrame(gameLoop);
+    };
+
+    function updateSaveDisplay() {
+      document.getElementById('highScoreDisplay').textContent = saveData.highScore;
+      document.getElementById('maxLevelDisplay').textContent = saveData.maxLevel;
+      
+      if (saveData.continueLevel > 1) {
+        document.getElementById('continueContainer').classList.remove('hidden');
+        document.getElementById('continueBtn').textContent = `继续第 ${saveData.continueLevel} 关`;
+      }
+    }
+
+    // ========== 音频系统 ==========
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      const now = audioCtx.currentTime;
+      
+      switch(type) {
+        case 'fish':
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.setValueAtTime(1100, now + 0.05);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now);
+          osc.stop(now + 0.1);
+          break;
+        case 'hit':
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(200, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+          break;
+        case 'win':
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.1);
+          osc.frequency.setValueAtTime(783.99, now + 0.2);
+          osc.frequency.setValueAtTime(1046.50, now + 0.3);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.5);
+          osc.start(now);
+          osc.stop(now + 0.5);
+          break;
+        case 'puddle':
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.linearRampToValueAtTime(100, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+          break;
+      }
+    }
+
+    // ========== 游戏逻辑 ==========
+    function initLevel(level) {
+      const levelConfig = LEVELS[level - 1];
+      
+      // 随机选择小猫颜色
+      if (level === 1) {
+        catType = Math.floor(Math.random() * CONFIG.colors.cat.length);
+      }
+      
+      // 玩家初始位置（左侧）
+      player = {
+        x: 50,
+        y: canvas.height - 100,
+        width: CONFIG.playerWidth,
+        height: CONFIG.playerHeight,
+        vx: 0,
+        slowed: false
+      };
+      
+      // 房子位置（右侧）
+      house = {
+        x: canvas.width - 90,
+        y: canvas.height - 90,
+        width: CONFIG.doorWidth,
+        height: CONFIG.doorHeight
+      };
+      
+      // 水坑
+      puddles = [];
+      for (let i = 0; i < levelConfig.puddles; i++) {
+        puddles.push({
+          x: 80 + Math.random() * (canvas.width - 200),
+          y: 150 + i * (canvas.height - 250) / levelConfig.puddles,
+          width: 60 + Math.random() * 40,
+          height: 20 + Math.random() * 15
+        });
+      }
+      
+      // 雨滴、小鱼干
+      rains = [];
+      fishes = [];
+      frames = 0;
+      levelScore = 0;
+      combo = 0;
+    }
+
+    function startGame() {
+      initAudio();
+      gameState = 'playing';
+      currentLevel = 1;
+      score = 0;
+      hearts = CONFIG.maxHearts;
+      catType = Math.floor(Math.random() * CONFIG.colors.cat.length);
+      initLevel(currentLevel);
+      
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      document.getElementById('winScreen').classList.add('hidden');
+      document.getElementById('allClearScreen').classList.add('hidden');
+      updateUI();
+    }
+
+    function continueGame() {
+      initAudio();
+      gameState = 'playing';
+      currentLevel = saveData.continueLevel;
+      score = 0;
+      hearts = CONFIG.maxHearts;
+      catType = Math.floor(Math.random() * CONFIG.colors.cat.length);
+      initLevel(currentLevel);
+      
+      document.getElementById('startScreen').classList.add('hidden');
+      updateUI();
+    }
+
+    function retryLevel() {
+      gameState = 'playing';
+      hearts = CONFIG.maxHearts;
+      levelScore = 0;
+      combo = 0;
+      invincible = false;
+      initLevel(currentLevel);
+      
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      updateUI();
+    }
+
+    function restartGame() {
+      gameState = 'playing';
+      currentLevel = 1;
+      score = 0;
+      hearts = CONFIG.maxHearts;
+      levelScore = 0;
+      combo = 0;
+      invincible = false;
+      initLevel(currentLevel);
+      
+      document.getElementById('gameOverScreen').classList.add('hidden');
+      updateUI();
+    }
+
+    function nextLevel() {
+      currentLevel++;
+      if (currentLevel > LEVELS.length) {
+        // 全通关
+        allClear();
+        return;
+      }
+      
+      gameState = 'playing';
+      hearts = CONFIG.maxHearts;
+      levelScore = 0;
+      combo = 0;
+      invincible = false;
+      initLevel(currentLevel);
+      
+      document.getElementById('winScreen').classList.add('hidden');
+      updateUI();
+    }
+
+    function playAgain() {
+      clearSave();
+      startGame();
+    }
+
+    function allClear() {
+      gameState = 'allclear';
+      saveGame();
+      document.getElementById('finalScore').textContent = score;
+      document.getElementById('finalHighScore').textContent = Math.max(saveData.highScore, score);
+      document.getElementById('allClearScreen').classList.remove('hidden');
+    }
+
+    function gameOver() {
+      gameState = 'gameover';
+      playSound('hit');
+      saveGame();
+      document.getElementById('levelScore').textContent = levelScore;
+      document.getElementById('gameOverScreen').classList.remove('hidden');
+      updateSaveDisplay();
+    }
+
+    function winLevel() {
+      gameState = 'win';
+      playSound('win');
+      score += levelScore;
+      // 生命奖励
+      score += hearts * 100;
+      saveGame();
+      document.getElementById('winLevelScore').textContent = levelScore;
+      document.getElementById('winScreen').classList.remove('hidden');
+    }
+
+    function updateUI() {
+      const levelConfig = LEVELS[currentLevel - 1];
+      document.getElementById('levelDisplay').textContent = `🏠 ${currentLevel}/5 ${levelConfig.name}`;
+      document.getElementById('heartsDisplay').textContent = '❤️'.repeat(hearts);
+      document.getElementById('scoreDisplay').textContent = `🐟 ${score}`;
+    }
+
+    function showCombo() {
+      if (combo >= 3) {
+        const comboEl = document.getElementById('comboDisplay');
+        comboEl.textContent = `🔥 Combo x${combo}!`;
+        comboEl.classList.add('show');
+        setTimeout(() => comboEl.classList.remove('show'), 800);
+      }
+    }
+
+    function showFloatScore(x, y, text) {
+      const floatEl = document.createElement('div');
+      floatEl.className = 'floatScore';
+      floatEl.textContent = text;
+      floatEl.style.left = x + 'px';
+      floatEl.style.top = y + 'px';
+      document.getElementById('gameContainer').appendChild(floatEl);
+      setTimeout(() => floatEl.remove(), 1000);
+    }
+
+    // ========== 更新 ==========
+    function update() {
+      if (gameState !== 'playing') return;
+      
+      frames++;
+      const levelConfig = LEVELS[currentLevel - 1];
+      
+      // 玩家移动
+      let speed = CONFIG.playerSpeed;
+      if (player.slowed) {
+        speed = CONFIG.playerSpeed * 0.5;
+        if (frames % 10 === 0) player.slowed = false;
+      }
+      
+      if (keys.left) player.x -= speed;
+      if (keys.right) player.x += speed;
+      
+      // 边界限制
+      player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
+      
+      // 生成雨滴
+      if (frames % levelConfig.rainRate === 0) {
+        rains.push({
+          x: Math.random() * canvas.width,
+          y: -20,
+          width: 4 + Math.random() * 4,
+          height: 15 + Math.random() * 10,
+          speed: levelConfig.rainSpeed + Math.random() * 2
+        });
+      }
+      
+      // 生成小鱼干
+      if (frames % levelConfig.fishRate === 0) {
+        fishes.push({
+          x: 30 + Math.random() * (canvas.width - 60),
+          y: -20,
+          width: 30,
+          height: 20,
+          speed: 2
+        });
+      }
+      
+      // 更新雨滴位置
+      for (let i = rains.length - 1; i >= 0; i--) {
+        rains[i].y += rains[i].speed;
+        if (rains[i].y > canvas.height) rains.splice(i, 1);
+      }
+      
+      // 更新小鱼干位置
+      for (let i = fishes.length - 1; i >= 0; i--) {
+        fishes[i].y += fishes[i].speed;
+        if (fishes[i].y > canvas.height) fishes.splice(i, 1);
+      }
+      
+      // 无敌时间
+      if (invincible) {
+        invincibleTimer--;
+        if (invincibleTimer <= 0) invincible = false;
+      }
+      
+      // 连击计时
+      if (comboTimer > 0) {
+        comboTimer--;
+        if (comboTimer <= 0) combo = 0;
+      }
+      
+      // 碰撞检测 - 雨滴
+      if (!invincible) {
+        for (const rain of rains) {
+          if (checkCollision(player, rain)) {
+            hearts--;
+            invincible = true;
+            invincibleTimer = 60;
+            playSound('hit');
+            combo = 0;
+            updateUI();
+            if (hearts <= 0) {
+              gameOver();
+              return;
+            }
+            break;
+          }
+        }
+      }
+      
+      // 碰撞检测 - 小鱼干
+      for (let i = fishes.length - 1; i >= 0; i--) {
+        if (checkCollision(player, fishes[i])) {
+          combo++;
+          comboTimer = 120;
+          const multiplier = Math.min(combo, 5);
+          const fishScore = 10 * multiplier;
+          levelScore += fishScore;
+          showFloatScore(fishes[i].x, fishes[i].y, `+${fishScore}`);
+          playSound('fish');
+          showCombo();
+          fishes.splice(i, 1);
+          updateUI();
+        }
+      }
+      
+      // 碰撞检测 - 水坑
+      for (const puddle of puddles) {
+        if (checkCollision(player, puddle)) {
+          player.slowed = true;
+          if (frames % 30 === 0) {
+            playSound('puddle');
+          }
+        }
+      }
+      
+      // 碰撞检测 - 房子（胜利）
+      if (checkCollision(player, house)) {
+        winLevel();
+        return;
+      }
+    }
+
+    function checkCollision(rect1, rect2) {
+      return rect1.x < rect2.x + rect2.width &&
+             rect1.x + rect1.width > rect2.x &&
+             rect1.y < rect2.y + rect2.height &&
+             rect1.y + rect1.height > rect2.y;
+    }
+
+    // ========== 渲染 ==========
+    function draw() {
+      const levelConfig = LEVELS[currentLevel - 1];
+      
+      // 背景
+      if (levelConfig.dark) {
+        // 夜晚
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 星星
+        ctx.fillStyle = '#fff';
+        for (let i = 0; i < 50; i++) {
+          const x = (i * 37) % canvas.width;
+          const y = (i * 23) % (canvas.height - 100);
+          ctx.beginPath();
+          ctx.arc(x, y, 1 + (i % 3), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        // 白天
+        ctx.fillStyle = levelConfig.rainRate < 35 ? '#87CEEB' : '#5C7C8A';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      
+      // 背景网格/雨丝
+      ctx.strokeStyle = levelConfig.dark ? 'rgba(255,255,255,0.1)' : 'rgba(79,195,247,0.3)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      
+      if (gameState === 'start') return;
+      
+      // 画水坑
+      for (const puddle of puddles) {
+        ctx.fillStyle = CONFIG.colors.puddle;
+        ctx.beginPath();
+        ctx.ellipse(
+          puddle.x + puddle.width/2,
+          puddle.y + puddle.height/2,
+          puddle.width/2,
+          puddle.height/2,
+          0, 0, Math.PI * 2
+        );
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+        ctx.stroke();
+      }
+      
+      // 画房子
+      drawHouse();
+      
+      // 画玩家（小猫）
+      drawCat();
+      
+      // 画雨滴
+      for (const rain of rains) {
+        drawRain(rain);
+      }
+      
+      // 画小鱼干
+      for (const fish of fishes) {
+        drawFish(fish);
+      }
+    }
+
+    function drawCat() {
+      const x = player.x;
+      const y = player.y;
+      const color = CONFIG.colors.cat[catType];
+      
+      // 无敌闪烁
+      if (invincible && Math.floor(frames / 4) % 2 === 0) return;
+      
+      // 身体
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(x + 20, y + 30, 18, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 头
+      ctx.beginPath();
+      ctx.arc(x + 20, y + 15, 16, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 耳朵
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y + 5);
+      ctx.lineTo(x + 4, y - 8);
+      ctx.lineTo(x + 16, y + 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 32, y + 5);
+      ctx.lineTo(x + 36, y - 8);
+      ctx.lineTo(x + 24, y + 2);
+      ctx.fill();
+      
+      // 眼睛
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(x + 14, y + 12, 3, 0, Math.PI * 2);
+      ctx.arc(x + 26, y + 12, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 鼻子
+      ctx.fillStyle = '#FF6B6B';
+      ctx.beginPath();
+      ctx.arc(x + 20, y + 18, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 胡须
+      ctx.strokeStyle = color === '#FFFFFF' ? '#333' : '#fff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y + 18);
+      ctx.lineTo(x - 5, y + 16);
+      ctx.moveTo(x + 8, y + 20);
+      ctx.lineTo(x - 5, y + 22);
+      ctx.moveTo(x + 32, y + 18);
+      ctx.lineTo(x + 45, y + 16);
+      ctx.moveTo(x + 32, y + 20);
+      ctx.lineTo(x + 45, y + 22);
+      ctx.stroke();
+      
+      // 尾巴
+      const tailSwing = Math.sin(frames * 0.15) * 8;
+      ctx.beginPath();
+      ctx.moveTo(x + 35, y + 35);
+      ctx.quadraticCurveTo(x + 50 + tailSwing, y + 25, x + 48 + tailSwing, y + 15);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      
+      // 腿
+      const legSwing = Math.sin(frames * 0.3) * 5;
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 12, y + 48, 5, 8 + legSwing);
+      ctx.fillRect(x + 23, y + 48, 5, 8 - legSwing);
+    }
+
+    function drawRain(rain) {
+      ctx.strokeStyle = CONFIG.colors.rain;
+      ctx.lineWidth = rain.width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(rain.x, rain.y);
+      ctx.lineTo(rain.x + 2, rain.y + rain.height);
+      ctx.stroke();
+    }
+
+    function drawFish(fish) {
+      // 发光
+      ctx.shadowColor = CONFIG.colors.fish;
+      ctx.shadowBlur = 10;
+      
+      // 鱼身
+      ctx.fillStyle = CONFIG.colors.fish;
+      ctx.beginPath();
+      ctx.ellipse(fish.x + 15, fish.y + 10, 12, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 鱼尾
+      ctx.beginPath();
+      ctx.moveTo(fish.x + 25, fish.y + 10);
+      ctx.lineTo(fish.x + 35, fish.y + 5);
+      ctx.lineTo(fish.x + 35, fish.y + 15);
+      ctx.fill();
+      
+      // 眼睛
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(fish.x + 8, fish.y + 8, 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+    }
+
+    function drawHouse() {
+      const x = house.x;
+      const y = house.y;
+      
+      // 房子主体
+      ctx.fillStyle = CONFIG.colors.house;
+      ctx.fillRect(x, y + 20, house.width, house.height - 20);
+      
+      // 屋顶
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y + 20);
+      ctx.lineTo(x + house.width/2, y - 10);
+      ctx.lineTo(x + house.width + 10, y + 20);
+      ctx.fill();
+      
+      // 门
+      ctx.fillStyle = '#8D6E63';
+      ctx.fillRect(x + 20, y + 40, 20, 40);
+      
+      // 窗户（发光）
+      ctx.fillStyle = CONFIG.colors.houseLight;
+      ctx.fillRect(x + 5, y + 25, 12, 12);
+      ctx.fillRect(x + 43, y + 25, 12, 12);
+      
+      // 烟囱
+      ctx.fillStyle = '#5D4037';
+      ctx.fillRect(x + 35, y - 20, 12, 25);
+    }
+
+    // ========== 游戏循环 ==========
+    function gameLoop() {
+      update();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+  </script>
+</body>
+</html>
